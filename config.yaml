@@ -1,0 +1,8 @@
+
+
+#raw files
+data_raw:
+    sample: "../data/raw/sample_submission.csv"
+    train: "../data/raw/train.csv"
+    test: "../data/raw/test.csv"
+
