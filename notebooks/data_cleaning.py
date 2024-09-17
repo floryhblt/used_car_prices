@@ -25,3 +25,4 @@ def update_fuel_type(df):
     
     return df
 
+
