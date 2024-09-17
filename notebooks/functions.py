@@ -113,8 +113,6 @@ def cleaning_null (df):
 
     
     
-
-    
     #Fill 'clean_title' with 'None reported'
     #df.clean_title.fillna('None reported', inplace = True) - error in future version
     df['accident']= df['accident'].apply(lambda x:'None reported' if pd.isna(x) else x)
@@ -124,3 +122,31 @@ def cleaning_null (df):
     df['clean_title']= df['clean_title'].apply(lambda x:'No' if pd.isna(x) else x)
 
     return df
+
+def update_color(df, col):
+    df.loc[(df[col].str.contains('Black', case=False, na=False)), col] = 'Black'
+    df.loc[(df[col].str.contains('Noir', case=False, na=False)), col] = 'Black'
+    df.loc[(df[col].str.contains('Blue', case=False, na=False)), col] = 'Blue'
+    df.loc[(df[col].str.contains('Blu', case=False, na=False)), col] = 'Blue'
+    df.loc[(df[col].str.contains('Red', case=False, na=False)), col] = 'Red'
+    df.loc[(df[col].str.contains('White', case=False, na=False)), col] = 'White'
+    df.loc[(df[col].str.contains('Green', case=False, na=False)), col] = 'Green'
+    df.loc[(df[col].str.contains('Gray', case=False, na=False)), col] = 'Gray'
+    df.loc[(df[col].str.contains('Grey', case=False, na=False)), col] = 'Gray'
+    df.loc[(df[col].str.contains('Silver', case=False, na=False)), col] = 'Silver'
+    df.loc[(df[col].str.contains('Metallic', case=False, na=False)), col] = 'Metallic'
+    df.loc[(df[col].str.contains('Yellow', case=False, na=False)), col] = 'Yellow'
+    df.loc[(df[col].str.contains('Orange', case=False, na=False)), col] = 'Orange'
+    df.loc[(df[col].str.contains('Brown', case=False, na=False)), col] = 'Brown'
+    df.loc[(df[col].str.contains('Beige', case=False, na=False)), col] = 'Beige'
+    colors = ['Black', 'Blue', 'Red','White','Green','Gray','Silver','Metallic','Gold','Brown','Orange','Beige','Yellow','Purple','Pink']
+
+    # Use .str.contains() to create a mask for rows containing any word from words_list
+    # We use '|'.join to create a regular expression that matches any word in words_list
+    pattern = '|'.join(colors)
+    mask = df[col].str.contains(pattern, case=False, regex=True)
+
+    # Change the value if the text does NOT contain any word from the list
+    df.loc[~mask, col] = 'Others'
+    return df
+
