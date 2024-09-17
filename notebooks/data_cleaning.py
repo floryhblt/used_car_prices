@@ -39,6 +39,3 @@ def update_fuel_type(df):
     df.loc[(df['fuel_type'].isnull()) & (df['brand'] == 'Volkswagen') & (df['engine'].str.contains('111.2Ah', case=False, na=False)), 'fuel_type'] = 'Electric'
     
     return df
-
-
-
