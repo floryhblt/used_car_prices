@@ -1,5 +1,31 @@
 import yaml
 import pandas as pd
+import numpy as np
+import re
+
+# dictionary to map the new values for the transmission
+
+
+transmission_mapping = {
+    'Automatic': ['A/T', 'Automatic', '6-Speed A/T', '8-Speed A/T', '10-Speed Automatic', 
+                  'Transmission w/Dual Shift Mode', '6-Speed Automatic', '7-Speed A/T', 
+                  '5-Speed Automatic', '8-Speed Automatic', '9-Speed A/T', '10-Speed A/T', 
+                  '9-Speed Automatic', '5-Speed A/T', '1-Speed A/T', '4-Speed A/T',
+                  '9-Speed Automatic with Auto-Shift', '8-Speed Automatic with Auto-Shift', 
+                  '10-Speed Automatic with Overdrive', '1-Speed Automatic', '2-Speed Automatic', 
+                  '7-Speed Automatic', '7-Speed Automatic with Auto-Shift', '6-Speed Automatic with Auto-Shift',
+                  'Single-Speed Fixed Gear', '8-SPEED A/T', '7-Speed DCT Automatic', '2-Speed A/T', '4-Speed Automatic'],
+    
+    'Manual': ['M/T', 'Manual', '5-Speed M/T', '6-Speed M/T', '7-Speed M/T', 
+               '6-Speed Manual', '7-Speed Manual', '8-Speed Manual', '6 Speed Mt', '7-Speed'],
+    
+    'CVT': ['Automatic CVT', 'CVT Transmission', 'Variable', 'CVT-F'],
+    
+    'Other': ['F', '2', '–', 'SCHEDULED FOR OR IN PRODUCTION', 'Transmission Overdrive Switch']
+}
+
+
+
 
 
 #function to import yaml file
@@ -13,8 +39,15 @@ def import_yaml():
     return config
 
 
+
+# CLEANING FUNCTIONS
+
+
 #function to fill Nan values of DS
 def cleaning_null (df):
+    
+    #Cleaning 'fuel_types' that arent defined and cant find information from other columns 
+    df['fuel_type'] = df['fuel_type'].replace(['–', 'not supported'], np.nan)
 
     # Fill missing 'fuel_type' values when the model is 'Tesla'
     df.loc[(df['fuel_type'].isnull()) & (df['brand'] == 'Tesla'), 'fuel_type'] = 'Electric'
@@ -111,7 +144,9 @@ def cleaning_null (df):
     # Fill missing 'fuel_type' values when 'model' is '500e Battery Electric'
     df.loc[(df['fuel_type'].isnull()) & (df['model'] == '500e Battery Electric'), 'fuel_type'] = 'Electric'
 
-    
+
+    # drops all values where we couldnt find the fuel_type
+    df.dropna(subset=['fuel_type'], inplace=True)
     
     #Fill 'clean_title' with 'None reported'
     #df.clean_title.fillna('None reported', inplace = True) - error in future version
@@ -122,6 +157,33 @@ def cleaning_null (df):
     df['clean_title']= df['clean_title'].apply(lambda x:'No' if pd.isna(x) else x)
 
     return df
+
+
+
+def format_columns (df):
+
+    # Group 'Plug-In Hybrid' with 'Hybrid' and 'E85 Flex Fuel' with 'Gasoline'
+    df['fuel_type'] = df['fuel_type'].replace({
+    'Plug-In Hybrid': 'Hybrid',
+    'E85 Flex Fuel': 'Gasoline'
+    })
+
+    #Group transmission in smaller groups
+    df['transmission'] = df['transmission'].apply(map_transmission)
+
+    # change colors to have few values
+    df = update_color(df, 'ext_col')
+    df = update_color(df, 'int_col')
+
+    return df
+    
+
+
+def map_transmission(trans):
+    for key, values in transmission_mapping.items():
+        if trans in values:
+            return key
+    return 'Other'
 
 def update_color(df, col):
     df.loc[(df[col].str.contains('Black', case=False, na=False)), col] = 'Black'
@@ -149,4 +211,57 @@ def update_color(df, col):
     # Change the value if the text does NOT contain any word from the list
     df.loc[~mask, col] = 'Others'
     return df
+
+
+
+#FORMATING AND DUMMIE CREATION FUNCTIONS
+
+
+# extract HP, Liters and Cylinder
+def extract_engine_info(engine, fuel_type):
+        hp_search = re.search(r'(\d+(\.\d+)?)HP', engine)
+        litre_search = re.search(r'(\d+(\.\d+)?)L', engine)
+        cylinders_search = re.search(r'(\d+) Cylinder', engine)
+        
+        hp = float(hp_search.group(1)) if hp_search else ''
+        litres = float(litre_search.group(1)) if litre_search else ''
+        cylinders = int(cylinders_search.group(1)) if cylinders_search else ''
+
+        
+        return pd.Series([hp, litres, cylinders])
+
+
+
+
+    
+def creat_dummies (df):
+    # creating automatic dummies
+    
+    dummies_fuel = pd.get_dummies(df[['id','fuel_type']], columns=['fuel_type'], drop_first=False)
+    dummies_transm = pd.get_dummies(df[['id','transmission']], columns=['transmission'], drop_first=False)
+    dummies_brand = pd.get_dummies(df[['id','brand']], columns=['brand'], drop_first=False)
+    
+    #creating manual dummies
+
+    engine_info = df.apply(lambda row: extract_engine_info(row['engine'], row['fuel_type']), axis=1)
+    df[['horsepower', 'engine_size', 'cylinders']] = engine_info
+
+    #merging all into one df
+    merged_df = pd.merge(df, dummies_fuel, on='id', how='left')
+    merged_df = pd.merge(merged_df, dummies_transm, on='id', how='left')
+    merged_df = pd.merge(merged_df, dummies_brand, on='id', how='left')
+
+    #droping old columns that were transformed into dummies
+    merged_df = merged_df.drop(['fuel_type','transmission','engine','brand'], axis = 1)
+
+    # changing the values for 'clean_title' and 'accident' to true or false
+    merged_df['clean_title']= merged_df['clean_title'].apply(lambda x: False if x == 'No' else True)
+    merged_df['accident']= merged_df['accident'].apply(lambda x: False if x == 'None reported' else True)
+
+    # coverting all boll to int for the test
+    boolean_columns = merged_df.select_dtypes(include='bool').columns
+    merged_df[boolean_columns] = merged_df[boolean_columns].astype(int)
+
+    return merged_df
+    
 
