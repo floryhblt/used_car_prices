@@ -9,4 +9,5 @@ data_raw:
 data_clean:
     train: "../data/clean/train.csv"
     test: "../data/clean/test.csv"
-
+    train_merged: "../data/clean/train_merged.csv"
+    test_merged: "../data/clean/test_merged.csv"
