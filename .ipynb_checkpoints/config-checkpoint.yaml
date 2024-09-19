@@ -1,0 +1,13 @@
+
+
+#raw files
+data_raw:
+    sample: "../data/raw/sample_submission.csv"
+    train: "../data/raw/train.csv"
+    test: "../data/raw/test.csv"
+
+data_clean:
+    train: "../data/clean/train.csv"
+    test: "../data/clean/test.csv"
+    train_merged: "../data/clean/train_merged.csv"
+    test_merged: "../data/clean/test_merged.csv"
